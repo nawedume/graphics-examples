@@ -13,12 +13,14 @@
 
 struct RenderObject {
     GLuint vao;
+    int numVertices;
     Shader* program;
     GLuint* textures;
     u_int8_t numTextures;
     glm::mat4 position;
 };
 
+float previousTime = 0.0;
 float deltaTime = 1.0f / 60.0f;
 double oldXPos = 0.0;
 double oldYPos = 0.0;
@@ -46,6 +48,10 @@ int main()
 
     while (!glfwWindowShouldClose(window))
     {
+        float currentTime = glfwGetTime();
+        deltaTime = currentTime - previousTime;
+        previousTime = currentTime;
+
         handleInputs(window);
 
         glEnable(GL_DEPTH_TEST);
@@ -61,12 +67,6 @@ int main()
 
         glBindVertexArray(cubeObject.vao);
         
-        // for (int i = 0; i < cubeObject.numTextures; i++)
-        // {
-        //     glActiveTexture(GL_TEXTURE0 + i);
-        //     glBindTexture(GL_TEXTURE_2D, cubeObject.textures[i]);
-        // }
-        // glActiveTexture(GL_TEXTURE0 + i);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, cubeObject.textures[0]);
 
@@ -76,7 +76,7 @@ int main()
         cubeObject.program->setInt("backgroundSampler", 0);
         cubeObject.program->setInt("foregroundSampler", 1);
 
-        glDrawElements(GL_TRIANGLES, 3 * 2 * 6, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, cubeObject.numVertices, GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -156,7 +156,7 @@ RenderObject createCubeVao()
     textures[1] = backgroundTexture;
 
     glm::mat4 position = glm::translate(glm::mat4(1.0), glm::vec3(4.0, 0.0, 3.0));
-    return RenderObject { vao, program, textures, 2, position};
+    return RenderObject { vao, 36, program, textures, 2, position};
 }
 
 GLFWwindow* setupWindow(int width, int height)
