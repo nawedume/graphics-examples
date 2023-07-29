@@ -49,15 +49,21 @@ FB createFramebuffer()
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    GLuint textureColorbuffer;
-    glGenTextures(1, &textureColorbuffer);
-    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    //GLuint textureColorbuffer;
+    //glGenTextures(1, &textureColorbuffer);
+    //glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    //glBindTexture(GL_TEXTURE_2D, 0);
 
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
+    GLuint densityTextureBuffer;
+    glGenTextures(1, &densityTextureBuffer);
+    glBindTexture(GL_TEXTURE_3D, densityTextureBuffer);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, WIDTH, HEIGHT, 33, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_3D, 0);
 
     GLuint rbo;
     glGenRenderbuffers(1, &rbo);
@@ -66,14 +72,8 @@ FB createFramebuffer()
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
-
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    {
-        throw std::runtime_error("Framebuffer not complete");
-    }
-
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    return { fbo, textureColorbuffer };
+    return { fbo, densityTextureBuffer };
 }
 
 int main()
@@ -124,7 +124,14 @@ int main()
         handleInputs(window);
 
         glBindFramebuffer(GL_FRAMEBUFFER, renderImageFramebuffer.fbo);
-        
+        glBindTexture(GL_TEXTURE_3D, renderImageFramebuffer.texture);
+        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderImageFramebuffer.texture, 0, 0);
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        {
+            std::cout << glCheckFramebufferStatus(GL_FRAMEBUFFER) << std::endl;
+            throw std::runtime_error("Framebuffer not complete");
+        }
+
         glEnable(GL_DEPTH_TEST);
         glClearColor(0.0, 0.0, 0.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -149,7 +156,6 @@ int main()
 
         glDrawElements(GL_TRIANGLES, cubeObject.numVertices, GL_UNSIGNED_INT, 0);
 
-    
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.0, 0.0, 0.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -158,7 +164,9 @@ int main()
         glDisable(GL_DEPTH_TEST);
         glBindVertexArray(quadVao);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, renderImageFramebuffer.texture);
+        glBindTexture(GL_TEXTURE_3D, renderImageFramebuffer.texture);
+
+        
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);
@@ -246,7 +254,7 @@ GLFWwindow* setupWindow(int width, int height)
     glfwInit();
 
     glfwWindowHint(GLFW_OPENGL_CORE_PROFILE, GL_TRUE);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_VERSION_MINOR, 3);
 
     GLFWwindow* window = glfwCreateWindow(width, height, "Model loading tutorial", NULL, NULL);
