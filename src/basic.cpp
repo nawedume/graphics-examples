@@ -60,7 +60,7 @@ FB createFramebuffer()
     GLuint densityTextureBuffer;
     glGenTextures(1, &densityTextureBuffer);
     glBindTexture(GL_TEXTURE_3D, densityTextureBuffer);
-    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, 33, 33, 33, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, 33, 33, 33, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_3D, 0);

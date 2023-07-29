@@ -2,7 +2,7 @@
 
 in vec2 vPos;
 
-out vec4 fColor;
+out float voxelValue;
 
 uniform float wZ;
 
@@ -16,8 +16,5 @@ float calculate_sphere_val()
 void main()
 {
     float sphere_val = calculate_sphere_val();
-    sphere_val = clamp(sphere_val, 0.0, 1.0);
-    fColor = vec4(sphere_val, sphere_val, sphere_val, 1.0);
-
-//    fColor = vec4(wZ/32.0, 0.0, 0.0, 1.0);
+    voxelValue = clamp(sphere_val, 0.0, 1.0);
 }
