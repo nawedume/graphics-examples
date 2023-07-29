@@ -8,8 +8,10 @@ out vec4 fColor;
 
 uniform sampler3D screenTexture;
 
+uniform int layerIndex;
+
 void main()
 {
-    fColor = texture(screenTexture, vec3(vTexCoord, float(gl_Layer)));
+    fColor = texture(screenTexture, vec3(vTexCoord, float(layerIndex) / 32.0));
     fColor.w = 1.0;
 }

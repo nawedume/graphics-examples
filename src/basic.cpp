@@ -60,7 +60,7 @@ FB createFramebuffer()
     GLuint densityTextureBuffer;
     glGenTextures(1, &densityTextureBuffer);
     glBindTexture(GL_TEXTURE_3D, densityTextureBuffer);
-    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, WIDTH, HEIGHT, 33, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, 33, 33, 33, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_3D, 0);
@@ -83,8 +83,6 @@ int main()
     setupGlad();
 
     glm::mat4 perspectiveTransform = glm::perspective(glm::radians(45.0), (double) WIDTH / HEIGHT, 0.1, 100.0);
-
-    RenderObject cubeObject = createCubeVao();
 
     FB renderImageFramebuffer = createFramebuffer();
     Shader postRenderProgram("./shaders/post.vs", "./shaders/post.fs");
@@ -115,6 +113,12 @@ int main()
     glEnableVertexAttribArray(1);
 
 
+    Shader text3DProgram("./shaders/text3D.vs", "./shaders/text3D.fs");
+    text3DProgram.use();
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(0);
+
+    int layerIndex = 0;
     while (!glfwWindowShouldClose(window))
     {
         float currentTime = glfwGetTime();
@@ -122,45 +126,44 @@ int main()
         previousTime = currentTime;
 
         handleInputs(window);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, renderImageFramebuffer.fbo);
-        glBindTexture(GL_TEXTURE_3D, renderImageFramebuffer.texture);
-        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderImageFramebuffer.texture, 0, 0);
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
         {
-            std::cout << glCheckFramebufferStatus(GL_FRAMEBUFFER) << std::endl;
-            throw std::runtime_error("Framebuffer not complete");
+            layerIndex += 1;
+            layerIndex %= 33;
         }
 
-        glEnable(GL_DEPTH_TEST);
-        glClearColor(0.0, 0.0, 0.0, 1.0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        cubeObject.program->use();
-
-        glm::mat4 cameraTransfrom = camera->GetViewMatrix();
-        cubeObject.program->setFloatMat4("uWorldTransform", glm::value_ptr(cubeObject.position));
-        cubeObject.program->setFloatMat4("uCameraTransform", glm::value_ptr(cameraTransfrom));
-        cubeObject.program->setFloatMat4("uPerspectiveTransform", glm::value_ptr(perspectiveTransform));
-
-        glBindVertexArray(cubeObject.vao);
+        // Render to frame buffer the sphere
+        glViewport(0, 0, 33, 33);
+        glBindFramebuffer(GL_FRAMEBUFFER, renderImageFramebuffer.fbo);
+        glBindTexture(GL_TEXTURE_3D, renderImageFramebuffer.texture);
         
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, cubeObject.textures[0]);
+        for (int i = 0; i < 33; i++)
+        {
+            glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderImageFramebuffer.texture, 0, i);
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            {
+                std::cout << glCheckFramebufferStatus(GL_FRAMEBUFFER) << std::endl;
+                throw std::runtime_error("Framebuffer not complete");
+            }
 
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, cubeObject.textures[1]);
+            glEnable(GL_DEPTH_TEST);
+            glClearColor(0.0, 0.0, 0.0, 1.0);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        cubeObject.program->setInt("backgroundSampler", 0);
-        cubeObject.program->setInt("foregroundSampler", 1);
+            text3DProgram.use();
+            text3DProgram.setFloat("res", 16.0f);
+            text3DProgram.setFloat("wZ", static_cast<float>(i));
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+        }
 
-        glDrawElements(GL_TRIANGLES, cubeObject.numVertices, GL_UNSIGNED_INT, 0);
 
+        // Render to actual screen
+        glViewport(0, 0, WIDTH, HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.0, 0.0, 0.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
-    
         postRenderProgram.use();
+        postRenderProgram.setInt("layerIndex", layerIndex);
         glDisable(GL_DEPTH_TEST);
         glBindVertexArray(quadVao);
         glActiveTexture(GL_TEXTURE0);
@@ -281,7 +284,7 @@ void setupGlad()
 
 void handleInputs(GLFWwindow* window)
 {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
     {
         glfwSetWindowShouldClose(window, true);
     }

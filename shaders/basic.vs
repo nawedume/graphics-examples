@@ -3,7 +3,7 @@
 layout (location = 0) in vec3 inPosition;
 layout (location = 1) in vec2 inTexture;
 
-out vec2 vTexture;
+out vec2 vWorldCoord;
 
 uniform mat4 uWorldTransform;
 uniform mat4 uCameraTransform;
