@@ -1,14 +1,14 @@
 #include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "../shader.h"
-#include "../glm/glm.hpp"
-#include "../glm/gtc/matrix_transform.hpp"
-#include "../glm/gtc/type_ptr.hpp"
-#include "../camera.hpp"
+#include "shader.h"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
+#include "camera.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "../stb_image.h"
+#include "stb_image.h"
 
 
 struct RenderObject {
@@ -88,7 +88,7 @@ int main()
 
 RenderObject createCubeVao()
 {
-    Shader* program = new Shader("basic.vs", "basic.fs");
+    Shader* program = new Shader("./shaders/basic.vs", "./shaders/basic.fs");
 
     float cube_vertices[] = {
         -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
@@ -149,8 +149,8 @@ RenderObject createCubeVao()
 
     float text[] = { 1.0, 0.0, 1.0};
 
-    GLuint foregroundTexture = generate_texture_2d("./awesomeface.png", GL_RGBA);
-    GLuint backgroundTexture = generate_texture_2d("./container.jpeg", GL_RGB);
+    GLuint foregroundTexture = generate_texture_2d("./assets/awesomeface.png", GL_RGBA);
+    GLuint backgroundTexture = generate_texture_2d("./assets/container.jpeg", GL_RGB);
     GLuint* textures = new GLuint[2];
     textures[0] = foregroundTexture;
     textures[1] = backgroundTexture;
