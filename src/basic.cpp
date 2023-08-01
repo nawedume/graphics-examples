@@ -2,23 +2,11 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "shader.h"
+#include "transform_shader.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "camera.hpp"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
-
-struct RenderObject {
-    GLuint vao;
-    int numVertices;
-    Shader* program;
-    GLuint* textures;
-    u_int8_t numTextures;
-    glm::mat4 position;
-};
 
 float previousTime = 0.0;
 float deltaTime = 1.0f / 60.0f;
@@ -28,15 +16,13 @@ bool firstMovement = true;
 
 extern GLFWwindow* setupWindow(int width, int height);
 extern void setupGlad();
-extern RenderObject createCubeVao();
 extern void handleInputs(GLFWwindow* window);
-extern GLuint generate_texture_2d(std::string texture_path, GLenum format);
 extern void handleMouseMovement(GLFWwindow* window, double xpos, double ypos);
 
 const int WIDTH = 1000;
 const int HEIGHT = 1000;
 
-Camera* camera = new Camera(glm::vec3(0.0, 3.0, 0.0), glm::vec3(0.0, 1.0, 0.0), 45.0f, -45.0f);
+Camera* camera = new Camera();
 
 struct FB {
     GLuint fbo;
@@ -60,7 +46,7 @@ FB createFramebuffer()
     GLuint densityTextureBuffer;
     glGenTextures(1, &densityTextureBuffer);
     glBindTexture(GL_TEXTURE_3D, densityTextureBuffer);
-    glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, 33, 33, 33, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_R32F, 33, 33, 33, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_3D, 0);
@@ -76,6 +62,35 @@ FB createFramebuffer()
     return { fbo, densityTextureBuffer };
 }
 
+float chunkStepSize = 0.25f;
+void generate_chunk_value(glm::vec3 chunkPosition, FB texture3DFramebuffer, const Shader& text3DProgram)
+{
+    // Render to frame buffer the sphere
+    glViewport(0, 0, 33, 33);
+    glBindFramebuffer(GL_FRAMEBUFFER, texture3DFramebuffer.fbo);
+    glBindTexture(GL_TEXTURE_3D, texture3DFramebuffer.texture);
+        
+    for (int i = 0; i < 33; i++)
+    {
+        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture3DFramebuffer.texture, 0, i);
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        {
+            std::cout << glCheckFramebufferStatus(GL_FRAMEBUFFER) << std::endl;
+            throw std::runtime_error("Framebuffer not complete");
+        }
+
+        glEnable(GL_DEPTH_TEST);
+        glClearColor(0.0, 0.0, 0.0, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        text3DProgram.use();
+        text3DProgram.setVec3("chunkPosition", (float*) glm::value_ptr(chunkPosition));
+        text3DProgram.setFloat("chunkWidth", 32.0f);
+        text3DProgram.setFloat("wZ", static_cast<float>(i));
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+}
+
 int main()
 {
 
@@ -83,6 +98,9 @@ int main()
     setupGlad();
 
     glm::mat4 perspectiveTransform = glm::perspective(glm::radians(45.0), (double) WIDTH / HEIGHT, 0.1, 100.0);
+
+    Shader finalRenderShader("./shaders/basic.vs", "./shaders/basic.fs");
+
 
     FB renderImageFramebuffer = createFramebuffer();
     Shader postRenderProgram("./shaders/post.vs", "./shaders/post.fs");
@@ -118,7 +136,56 @@ int main()
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
     glEnableVertexAttribArray(0);
 
-    int layerIndex = 0;
+    const char* varyings[1];
+    varyings[0] = "outVec";
+    TransformOutputParams params {
+        .varyings = varyings,
+        .varyingsCount = 1,
+        .bufferMode = GL_INTERLEAVED_ATTRIBS
+    };
+    TransformShader mcBufferShader("./shaders/mc.vs", "./shaders/mcd.gs", params);
+    // generate a cube buffer;
+    std::vector<float> cubeVertices;
+    for (int i = 0; i < 32; i++)
+    {
+        for (int j = 0; j < 32; j++)
+        {
+            for (int k = 0; k < 32; k++)
+            {
+                cubeVertices.push_back(static_cast<float>(i));
+                cubeVertices.push_back(static_cast<float>(j));
+                cubeVertices.push_back(static_cast<float>(k));
+            }
+        }
+    }
+
+    mcBufferShader.use();
+    GLuint cubeVao;
+    glGenVertexArrays(1, &cubeVao);
+    glBindVertexArray(cubeVao);
+
+    GLuint cubeBuffer;
+    glGenBuffers(1, &cubeBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, cubeBuffer);
+    glBufferData(GL_ARRAY_BUFFER, cubeVertices.size() * sizeof(float), cubeVertices.data(), GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) 0);
+
+    // to capture the feedback buffer
+    GLuint feedbackObj;
+    glGenTransformFeedbacks(1, &feedbackObj);
+    glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, feedbackObj);
+
+    GLuint mcOutputBuffer;
+    glGenBuffers(1, &mcOutputBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, mcOutputBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * cubeVertices.size() * 9 , nullptr, GL_STATIC_DRAW);
+        
+        
+    long frameCount = 0;
+
+    int layerIndex = 31;
     while (!glfwWindowShouldClose(window))
     {
         float currentTime = glfwGetTime();
@@ -131,125 +198,95 @@ int main()
             layerIndex += 1;
             layerIndex %= 33;
         }
-
-        // Render to frame buffer the sphere
-        glViewport(0, 0, 33, 33);
-        glBindFramebuffer(GL_FRAMEBUFFER, renderImageFramebuffer.fbo);
-        glBindTexture(GL_TEXTURE_3D, renderImageFramebuffer.texture);
-        
-        for (int i = 0; i < 33; i++)
-        {
-            glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderImageFramebuffer.texture, 0, i);
-            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-            {
-                std::cout << glCheckFramebufferStatus(GL_FRAMEBUFFER) << std::endl;
-                throw std::runtime_error("Framebuffer not complete");
-            }
-
-            glEnable(GL_DEPTH_TEST);
-            glClearColor(0.0, 0.0, 0.0, 1.0);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-            text3DProgram.use();
-            text3DProgram.setFloat("res", 16.0f);
-            text3DProgram.setFloat("wZ", static_cast<float>(i));
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-        }
-
-
-        // Render to actual screen
+        glm::vec3 chunkPosition = glm::vec3(-16.0f);
+        generate_chunk_value(chunkPosition, renderImageFramebuffer, text3DProgram);
         glViewport(0, 0, WIDTH, HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(0.0, 0.0, 0.0, 1.0);
-        glClear(GL_COLOR_BUFFER_BIT);
-        postRenderProgram.use();
-        postRenderProgram.setInt("layerIndex", layerIndex);
-        glDisable(GL_DEPTH_TEST);
-        glBindVertexArray(quadVao);
+
+        mcBufferShader.use();
+        //mcBufferShader.setVec3("uChunkPosition", glm::value_ptr(chunkPosition));
+        //mcBufferShader.setFloat("uChunkWidth", 32.0f);
+        //glEnable(GL_RASTERIZER_DISCARD);
+
+        glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, mcOutputBuffer); // 32*32*32*12*sizeof(float));
+        
+        glBindVertexArray(cubeVao);
+        glBeginTransformFeedback(GL_TRIANGLES);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_3D, renderImageFramebuffer.texture);
+        glDrawArrays(GL_POINTS, 0, cubeVertices.size());
+        glEndTransformFeedback();
+        glUseProgram(0);
 
-        
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        float subdata[32*32*32*9] {};
+        glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, sizeof(subdata), subdata);
+        //float max = 0.0f;
+        //for (int a = 0; a < 32*32*32*9; a += 9)
+        //{
+            //if (subdata[a] > max) max = subdata[a];
+//             std::cout << "======" << std::endl;
+             //std::cout  << subdata[a] << ", " << subdata[a+1] << ", " << subdata[a+2] << std::endl;
+             //std::cout  << subdata[a+3] << ", " << subdata[a+4] << ", " << subdata[a+5] << std::endl;
+             //std::cout  << subdata[a+6] << ", " << subdata[a+7] << ", " << subdata[a+8] << std::endl;
+        //}
+        //GLuint svao;
+        //glGenVertexArrays(1, &svao);
+        //glBindVertexArray(svao);
+        //GLuint sbuf;
+        //glGenBuffers(1, &sbuf);
+        //glBindBuffer(GL_ARRAY_BUFFER, sbuf);
+        //glBufferData(GL_ARRAY_BUFFER, 32*32*32*9 * sizeof(float), subdata, GL_STATIC_DRAW);
+        //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*) 0);
+        //glEnableVertexAttribArray(0);
+
+        finalRenderShader.use();
+        glm::mat4 cameraTransfrom = camera->GetViewMatrix();
+        finalRenderShader.setFloatMat4("uWorldTransform", (float*) glm::value_ptr(glm::mat4(1.0)));
+        finalRenderShader.setFloatMat4("uCameraTransform", glm::value_ptr(cameraTransfrom));
+        finalRenderShader.setFloatMat4("uPerspectiveTransform", glm::value_ptr(perspectiveTransform));
+
+        glEnable(GL_DEPTH_TEST);
+        glClearColor(0.0, 0.0, 0.0, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) 0);
+        glDrawTransformFeedback(GL_TRIANGLES, feedbackObj);
+
+        //glDrawArrays(GL_TRIANGLES, 0, 32*32*32*3);
+
+        //std::cout << max << std::endl;
+
+        //GLuint sdVao;
+        //glGenVertexArrays(1, &sdVao);
+        //glBindVertexArray(sdVao);
+        //GLuint sdBuf;
+        //glGenBuffers(1, &sdBuf);
+        //glBindBuffer(GL_VERTEX_ARRAY, sdBuf);
+        //glBufferData(GL_VERTEX_ARRAY, sizeof(subdata), subdata, GL_STATIC_DRAW);
+        //glEnableVertexAttribArray(0);
+        //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*) 0);
+        //glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        //if (true) return 0;
+
+        //glViewport(0, 0, WIDTH, HEIGHT);
+        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        //glClearColor(0.0, 0.0, 0.0, 1.0);
+        //glClear(GL_COLOR_BUFFER_BIT);
+        //postRenderProgram.use();
+        //postRenderProgram.setInt("layerIndex", layerIndex);
+        //glDisable(GL_DEPTH_TEST);
+        //glBindVertexArray(quadVao);
+        //glActiveTexture(GL_TEXTURE0);
+        //glBindTexture(GL_TEXTURE_3D, renderImageFramebuffer.texture);
+        //glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
     return 0;
-}
-
-RenderObject createCubeVao()
-{
-    Shader* program = new Shader("./shaders/basic.vs", "./shaders/basic.fs");
-
-    float cube_vertices[] = {
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-
-        -0.5f, -0.5f,  -0.5f,  1.0f, 0.0f,
-         0.5f, -0.5f,  -0.5f,  0.0f, 0.0f,
-         0.5f,  0.5f,  -0.5f,  0.0f, 1.0f,
-        -0.5f,  0.5f,  -0.5f,  1.0f, 1.0f
-    };
-
-    unsigned int cube_indices[] = {
-        0, 1, 2,
-        0, 2, 3,
-
-        1, 5, 6,
-        1, 6, 2,
-
-        5, 4, 7,
-        5, 7, 6,
-
-        4, 0, 3,
-        4, 3, 7,
-
-        3, 2, 6,
-        3, 6, 7,
-
-        4, 5, 1,
-        4, 1, 0
-    };
-
-    program->use();
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    GLuint vertexBufferObj;
-    glGenBuffers(1, &vertexBufferObj);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
-    
-    GLuint indexBufferObj;
-    glGenBuffers(1, &indexBufferObj);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBufferObj);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
-
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (void *) 0);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (void*) (3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-
-    // setup texture
-
-    float text[] = { 1.0, 0.0, 1.0};
-
-    GLuint foregroundTexture = generate_texture_2d("./assets/awesomeface.png", GL_RGBA);
-    GLuint backgroundTexture = generate_texture_2d("./assets/container.jpeg", GL_RGB);
-    GLuint* textures = new GLuint[2];
-    textures[0] = foregroundTexture;
-    textures[1] = backgroundTexture;
-
-    glm::mat4 position = glm::translate(glm::mat4(1.0), glm::vec3(4.0, 0.0, 3.0));
-    return RenderObject { vao, 36, program, textures, 2, position};
 }
 
 GLFWwindow* setupWindow(int width, int height)
@@ -312,6 +349,7 @@ void handleInputs(GLFWwindow* window)
     {
         camera->ProcessKeyboard(Camera_Movement::DOWN, deltaTime);
     }
+
 }
 
 void handleMouseMovement(GLFWwindow* window, double xpos, double ypos)
@@ -330,25 +368,4 @@ void handleMouseMovement(GLFWwindow* window, double xpos, double ypos)
 
     oldXPos = xpos;
     oldYPos = ypos;
-}
-
-GLuint generate_texture_2d(std::string texture_path, GLenum format)
-{
-    stbi_set_flip_vertically_on_load(true);
-    int width, height, nrChannels;
-    unsigned char* textureData = stbi_load(texture_path.c_str(), &width, &height, &nrChannels, 0);
-    if (!textureData)
-    { 
-        std::cerr << "Failed to load image data for container.jpeg" << std::endl;
-        exit(1);
-    }
-
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, format, GL_UNSIGNED_BYTE, textureData);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    stbi_image_free(textureData);
-
-    return texture;
 }

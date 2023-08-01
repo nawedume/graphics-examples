@@ -12,6 +12,6 @@ uniform int layerIndex;
 
 void main()
 {
-    fColor = texture(screenTexture, vec3(vTexCoord, float(layerIndex) / 32.0));
+    fColor.xyz = texture(screenTexture, vec3(vTexCoord, float(layerIndex) / 32.0)).xyz;
     fColor.w = 1.0;
 }

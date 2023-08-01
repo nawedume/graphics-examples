@@ -27,3 +27,5 @@ $(EXE): $(OBJS)
 clean:
 	rm -rf $(EXE) $(BUILD_DIR)
 
+test:
+	make && ./build.out

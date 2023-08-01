@@ -61,7 +61,7 @@ public:
         if (!success)
         {
             glGetShaderInfoLog(vertex, 512, NULL, infoLog);
-            std::cout << "ERROR::VERTEX_SHADER::COMPILATION_FAILED" << infoLog << std::endl;
+            std::cout << "aaERROR::VERTEX_SHADER::COMPILATION_FAILED::" << vertexPath << ":" << infoLog << std::endl;
             exit(1);
         }
 
@@ -72,7 +72,7 @@ public:
         if (!success)
         {
             glGetShaderInfoLog(fragment, 512, NULL, infoLog);
-            std::cout << "ERROR::FRAGMENT_SHADER::COMPILATION_FAILED" << infoLog << std::endl;
+            std::cout << "ERROR::FRAGMENT_SHADER::COMPILATION_FAILED::" << fragmentPath << ":" << infoLog << std::endl;
             exit(1);
         }
 
@@ -92,7 +92,7 @@ public:
         glDeleteShader(fragment);
     }
 
-    void use()
+    void use() const
     {
         glUseProgram(ID);
     }
@@ -114,7 +114,7 @@ public:
     {
         glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, value);
     }
-    void setVec3(const std::string& name, float* value)
+    void setVec3(const std::string& name, float* value) const
     {
         glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, value);
     }
