@@ -35,14 +35,6 @@ FB createFramebuffer()
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    //GLuint textureColorbuffer;
-    //glGenTextures(1, &textureColorbuffer);
-    //glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    //glBindTexture(GL_TEXTURE_2D, 0);
-
     GLuint densityTextureBuffer;
     glGenTextures(1, &densityTextureBuffer);
     glBindTexture(GL_TEXTURE_3D, densityTextureBuffer);
@@ -177,6 +169,10 @@ int main()
     glGenTransformFeedbacks(1, &feedbackObj);
     glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, feedbackObj);
 
+    GLuint svao;
+    glGenVertexArrays(1, &svao);
+    glBindVertexArray(svao);
+
     GLuint mcOutputBuffer;
     glGenBuffers(1, &mcOutputBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, mcOutputBuffer);
@@ -186,6 +182,8 @@ int main()
     long frameCount = 0;
 
     int layerIndex = 31;
+    glm::vec3 chunkPosition = glm::vec3(-16.0f);
+    generate_chunk_value(chunkPosition, renderImageFramebuffer, text3DProgram);
     while (!glfwWindowShouldClose(window))
     {
         float currentTime = glfwGetTime();
@@ -198,15 +196,11 @@ int main()
             layerIndex += 1;
             layerIndex %= 33;
         }
-        glm::vec3 chunkPosition = glm::vec3(-16.0f);
-        generate_chunk_value(chunkPosition, renderImageFramebuffer, text3DProgram);
         glViewport(0, 0, WIDTH, HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
         mcBufferShader.use();
         //mcBufferShader.setVec3("uChunkPosition", glm::value_ptr(chunkPosition));
         //mcBufferShader.setFloat("uChunkWidth", 32.0f);
-        //glEnable(GL_RASTERIZER_DISCARD);
 
         glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, mcOutputBuffer); // 32*32*32*12*sizeof(float));
         
@@ -218,26 +212,17 @@ int main()
         glEndTransformFeedback();
         glUseProgram(0);
 
-        float subdata[32*32*32*9] {};
+        float subdata[9] {};
         glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, sizeof(subdata), subdata);
         //float max = 0.0f;
-        //for (int a = 0; a < 32*32*32*9; a += 9)
+        //for (int a = 0; a < ; a += 9)
         //{
             //if (subdata[a] > max) max = subdata[a];
-//             std::cout << "======" << std::endl;
+             //std::cout << "======" << std::endl;
              //std::cout  << subdata[a] << ", " << subdata[a+1] << ", " << subdata[a+2] << std::endl;
              //std::cout  << subdata[a+3] << ", " << subdata[a+4] << ", " << subdata[a+5] << std::endl;
              //std::cout  << subdata[a+6] << ", " << subdata[a+7] << ", " << subdata[a+8] << std::endl;
         //}
-        //GLuint svao;
-        //glGenVertexArrays(1, &svao);
-        //glBindVertexArray(svao);
-        //GLuint sbuf;
-        //glGenBuffers(1, &sbuf);
-        //glBindBuffer(GL_ARRAY_BUFFER, sbuf);
-        //glBufferData(GL_ARRAY_BUFFER, 32*32*32*9 * sizeof(float), subdata, GL_STATIC_DRAW);
-        //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*) 0);
-        //glEnableVertexAttribArray(0);
 
         finalRenderShader.use();
         glm::mat4 cameraTransfrom = camera->GetViewMatrix();
@@ -245,30 +230,14 @@ int main()
         finalRenderShader.setFloatMat4("uCameraTransform", glm::value_ptr(cameraTransfrom));
         finalRenderShader.setFloatMat4("uPerspectiveTransform", glm::value_ptr(perspectiveTransform));
 
+        glBindVertexArray(svao); 
         glEnable(GL_DEPTH_TEST);
         glClearColor(0.0, 0.0, 0.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) 0);
-        glDrawTransformFeedback(GL_TRIANGLES, feedbackObj);
-
-        //glDrawArrays(GL_TRIANGLES, 0, 32*32*32*3);
-
-        //std::cout << max << std::endl;
-
-        //GLuint sdVao;
-        //glGenVertexArrays(1, &sdVao);
-        //glBindVertexArray(sdVao);
-        //GLuint sdBuf;
-        //glGenBuffers(1, &sdBuf);
-        //glBindBuffer(GL_VERTEX_ARRAY, sdBuf);
-        //glBufferData(GL_VERTEX_ARRAY, sizeof(subdata), subdata, GL_STATIC_DRAW);
-        //glEnableVertexAttribArray(0);
-        //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*) 0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) 0);
         //glDrawArrays(GL_TRIANGLES, 0, 3);
-
-        //if (true) return 0;
+        glDrawTransformFeedback(GL_TRIANGLES, feedbackObj);
 
         //glViewport(0, 0, WIDTH, HEIGHT);
         //glBindFramebuffer(GL_FRAMEBUFFER, 0);

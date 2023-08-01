@@ -572,18 +572,6 @@ void emitVertex(int edge)
 
 void main()
 {
-    //gl_Position = vec4(1.0);
-    //outVec = vec3(-0.5, -0.5, 0.0);
-    //EmitVertex();
-    //gl_Position = vec4(0.0, 1.0, 1.0, 1.0);
-    //outVec = vec3(0.5, -0.5, 0.0);
-    //EmitVertex();
-    //gl_Position = vec4(1.0, 0.0, 0.0, 1.0);
-    //outVec = vec3(0.5, 0.5, 0.0);
-    //EmitVertex();
-    //EndPrimitive();
-    //return;
-
     vec3 samplerCoord = gl_in[0].gl_Position.xyz / uChunkWidth;
     float samplerOffset = 1.0 / uChunkWidth;
     float corner_vals[8];

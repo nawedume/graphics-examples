@@ -16,5 +16,5 @@ void main()
 {
     float zWorld = chunkPosition.z + wZ;
     float sphere_val = calculate_sphere_val(vec3(vPos, zWorld));
-    voxelValue = clamp(sphere_val, 0.0, 1.0);
+    voxelValue = sphere_val;
 }
