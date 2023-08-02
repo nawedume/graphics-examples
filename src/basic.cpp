@@ -55,9 +55,10 @@ FB createFramebuffer()
 }
 
 float chunkStepSize = 0.25f;
-void generate_chunk_value(glm::vec3 chunkPosition, FB texture3DFramebuffer, const Shader& text3DProgram)
+void generate_chunk_value(GLuint quadVao, glm::vec3 chunkPosition, FB texture3DFramebuffer, const Shader& text3DProgram)
 {
     // Render to frame buffer the sphere
+    glBindVertexArray(quadVao);
     glViewport(0, 0, 33, 33);
     glBindFramebuffer(GL_FRAMEBUFFER, texture3DFramebuffer.fbo);
     glBindTexture(GL_TEXTURE_3D, texture3DFramebuffer.texture);
@@ -89,7 +90,7 @@ int main()
     GLFWwindow* window = setupWindow(WIDTH, HEIGHT);
     setupGlad();
 
-    glm::mat4 perspectiveTransform = glm::perspective(glm::radians(45.0), (double) WIDTH / HEIGHT, 0.1, 100.0);
+    glm::mat4 perspectiveTransform = glm::perspective(glm::radians(45.0), (double) WIDTH / HEIGHT, 0.1, 10000.0);
 
     Shader finalRenderShader("./shaders/basic.vs", "./shaders/basic.fs");
 
@@ -135,7 +136,7 @@ int main()
         .varyingsCount = 1,
         .bufferMode = GL_INTERLEAVED_ATTRIBS
     };
-    TransformShader mcBufferShader("./shaders/mc.vs", "./shaders/mcd.gs", params);
+    TransformShader mcBufferShader("./shaders/mc.vs", "./shaders/mc.gs", params);
     // generate a cube buffer;
     std::vector<float> cubeVertices;
     for (int i = 0; i < 32; i++)
@@ -183,7 +184,7 @@ int main()
 
     int layerIndex = 31;
     glm::vec3 chunkPosition = glm::vec3(-16.0f);
-    generate_chunk_value(chunkPosition, renderImageFramebuffer, text3DProgram);
+    generate_chunk_value(quadVao, chunkPosition, renderImageFramebuffer, text3DProgram);
     while (!glfwWindowShouldClose(window))
     {
         float currentTime = glfwGetTime();
@@ -199,23 +200,22 @@ int main()
         glViewport(0, 0, WIDTH, HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         mcBufferShader.use();
-        //mcBufferShader.setVec3("uChunkPosition", glm::value_ptr(chunkPosition));
-        //mcBufferShader.setFloat("uChunkWidth", 32.0f);
-
-        glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, mcOutputBuffer); // 32*32*32*12*sizeof(float));
-        
-        glBindVertexArray(cubeVao);
-        glBeginTransformFeedback(GL_TRIANGLES);
+        mcBufferShader.setVec3("uChunkPosition", glm::value_ptr(chunkPosition));
+        mcBufferShader.setFloat("uChunkWidth", 32.0f);
+        glDisable(GL_DEPTH_TEST);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_3D, renderImageFramebuffer.texture);
+        glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, mcOutputBuffer); // 32*32*32*12*sizeof(float));
+        glBindVertexArray(cubeVao);
+        glBeginTransformFeedback(GL_TRIANGLES);
         glDrawArrays(GL_POINTS, 0, cubeVertices.size());
         glEndTransformFeedback();
         glUseProgram(0);
 
-        float subdata[9] {};
+        float subdata[32*32*32*9] {};
         glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, sizeof(subdata), subdata);
         //float max = 0.0f;
-        //for (int a = 0; a < ; a += 9)
+        //for (int a = 0; a < 32*32*32*9; a += 9)
         //{
             //if (subdata[a] > max) max = subdata[a];
              //std::cout << "======" << std::endl;
@@ -223,6 +223,7 @@ int main()
              //std::cout  << subdata[a+3] << ", " << subdata[a+4] << ", " << subdata[a+5] << std::endl;
              //std::cout  << subdata[a+6] << ", " << subdata[a+7] << ", " << subdata[a+8] << std::endl;
         //}
+        //std::cout << max << std::endl;
 
         finalRenderShader.use();
         glm::mat4 cameraTransfrom = camera->GetViewMatrix();
@@ -238,7 +239,6 @@ int main()
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) 0);
         //glDrawArrays(GL_TRIANGLES, 0, 3);
         glDrawTransformFeedback(GL_TRIANGLES, feedbackObj);
-
         //glViewport(0, 0, WIDTH, HEIGHT);
         //glBindFramebuffer(GL_FRAMEBUFFER, 0);
         //glClearColor(0.0, 0.0, 0.0, 1.0);

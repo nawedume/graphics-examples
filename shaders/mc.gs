@@ -595,12 +595,13 @@ void main()
             maxv = corner_vals[i];
         }
     }
-
-    outVec = gl_in[0].gl_Position.xyz; 
+    
+    maxv = texture(screenTexture, samplerCoord).x;
+    outVec = gl_in[0].gl_Position.xyz;
     EmitVertex();
     outVec = samplerCoord;
     EmitVertex();
-    outVec = texture(screenTexture, vec3(0.5, 0.5, 0.5)).xyz;
+    outVec = vec3(maxv, -20.0, -10.0);
     EmitVertex();
     EndPrimitive();
     return;

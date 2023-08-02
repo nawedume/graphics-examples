@@ -8,12 +8,11 @@ out vec3 outVec;
 
 void main()
 {
-    outVec = texture(screenTexture, gl_in[0].gl_Position.xyz).xyz;
-    outVec.z = 3.0;
+    outVec = texture(screenTexture, vec3(0.5)).xyz;
     EmitVertex();
-    outVec = vec3(1.0, 1.0, 3.0);
+    outVec = vec3(-10.0); //texture(screenTexture, vec3(0.5)).xyz;
     EmitVertex();
-    outVec = vec3(-1.0, 0.0, 3.0);
+    outVec = texture(screenTexture, vec3(0.5)).xyz;
     EmitVertex();
     EndPrimitive();
 
