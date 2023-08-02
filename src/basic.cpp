@@ -212,8 +212,8 @@ int main()
         glEndTransformFeedback();
         glUseProgram(0);
 
-        float subdata[32*32*32*9] {};
-        glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, sizeof(subdata), subdata);
+        //float subdata[32*32*32*9] {};
+        //glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, sizeof(subdata), subdata);
         //float max = 0.0f;
         //for (int a = 0; a < 32*32*32*9; a += 9)
         //{
@@ -223,7 +223,7 @@ int main()
              //std::cout  << subdata[a+3] << ", " << subdata[a+4] << ", " << subdata[a+5] << std::endl;
              //std::cout  << subdata[a+6] << ", " << subdata[a+7] << ", " << subdata[a+8] << std::endl;
         //}
-        //std::cout << max << std::endl;
+        ////std::cout << max << std::endl;
 
         finalRenderShader.use();
         glm::mat4 cameraTransfrom = camera->GetViewMatrix();

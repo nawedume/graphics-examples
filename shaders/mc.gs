@@ -596,16 +596,6 @@ void main()
         }
     }
     
-    maxv = texture(screenTexture, samplerCoord).x;
-    outVec = gl_in[0].gl_Position.xyz;
-    EmitVertex();
-    outVec = samplerCoord;
-    EmitVertex();
-    outVec = vec3(maxv, -20.0, -10.0);
-    EmitVertex();
-    EndPrimitive();
-    return;
-
     int edges[12] = CONFIG_TO_EDGE_LIST[config];
     int edge_count = CONFIG_TO_VERTEX_COUNT[config];
     for (int i = 0; i < edge_count; i += 3)
