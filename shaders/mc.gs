@@ -12,7 +12,7 @@ vec3 CORNER_VECTORS[8] = vec3[8](
 );
 
 int CONFIG_TO_EDGE_LIST[256][12] = int[256][12]( 
-    int[12](0,0,0,0,0,0,0,0,0,0,0,0),
+    int[](0,0,0,0,0,0,0,0,0,0,0,0),
     int[](0,4,3,0,0,0,0,0,0,0,0,0),
     int[](5,0,1,0,0,0,0,0,0,0,0,0),
     int[](3,1,4,1,5,4,0,0,0,0,0,0),
@@ -561,10 +561,10 @@ void emitVertex(int edge)
     ivec2 edge_vertices = EDGE_TO_VERTICES_LIST[edge];
     vec3 v1 = CORNER_VECTORS[edge_vertices.x];
     vec3 v2 = CORNER_VECTORS[edge_vertices.y];
-    vec3 interpolated_vertex = 0.5 * v1  + 0.5 * v2;
+    vec3 interpolated_vertex = (0.5 * v1)  + (0.5 * v2);
 
     // Move the interpolated poitn into worls space
-    gl_Position.xyz = interpolated_vertex + gl_in[0].gl_Position.xyz + uChunkPosition;
+    gl_Position.xyz = interpolated_vertex + gl_in[0].gl_Position.xyz ;//+ uChunkPosition;
     gl_Position.w = 1.0;
     outVec = gl_Position.xyz;
     EmitVertex();
@@ -577,23 +577,18 @@ void main()
     float corner_vals[8];
     corner_vals[0] = texture(screenTexture, samplerCoord).x;
     corner_vals[1] = texture(screenTexture, samplerCoord + vec3(samplerOffset, 0.0, 0.0)).x;
-    corner_vals[2] = texture(screenTexture, samplerCoord + vec3(samplerOffset, 0.0, samplerOffset)).x;
-    corner_vals[3] = texture(screenTexture, samplerCoord + vec3(0.0, 0.0, samplerOffset)).x;
+    corner_vals[2] = texture(screenTexture, samplerCoord + vec3(samplerOffset, 0.0, -samplerOffset)).x;
+    corner_vals[3] = texture(screenTexture, samplerCoord + vec3(0.0, 0.0, -samplerOffset)).x;
 
-    corner_vals[4] = texture(screenTexture, samplerCoord + vec3(0.0, 1.0, 0.0)).x;
-    corner_vals[5] = texture(screenTexture, samplerCoord + vec3(samplerOffset, 1.0, 0.0)).x;
-    corner_vals[6] = texture(screenTexture, samplerCoord + vec3(samplerOffset, 1.0, samplerOffset)).x;
-    corner_vals[7] = texture(screenTexture, samplerCoord + vec3(0.0, 1.0, samplerOffset)).x;
+    corner_vals[4] = texture(screenTexture, samplerCoord + vec3(0.0, samplerOffset, 0.0)).x;
+    corner_vals[5] = texture(screenTexture, samplerCoord + vec3(samplerOffset, samplerOffset, 0.0)).x;
+    corner_vals[6] = texture(screenTexture, samplerCoord + vec3(samplerOffset, samplerOffset, -samplerOffset)).x;
+    corner_vals[7] = texture(screenTexture, samplerCoord + vec3(0.0, samplerOffset, -samplerOffset)).x;
 
     int config = 0;
-    float maxv = -10000 ;
     for (int i = 0; i < 8; i++)
     {
-        config |= (int((corner_vals[i] > 0.0)) << i);
-        if (corner_vals[i] > maxv)
-        {
-            maxv = corner_vals[i];
-        }
+        config |= (int((corner_vals[i] < 0.0)) << i);
     }
     
     int edges[12] = CONFIG_TO_EDGE_LIST[config];
