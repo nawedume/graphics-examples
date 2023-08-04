@@ -556,15 +556,18 @@ layout (triangle_strip, max_vertices = 12) out;
 
 out vec3 outVec;
 
-void emitVertex(int edge)
+void emitVertex(int edge, float corner_vals[8])
 {
     ivec2 edge_vertices = EDGE_TO_VERTICES_LIST[edge];
     vec3 v1 = CORNER_VECTORS[edge_vertices.x];
     vec3 v2 = CORNER_VECTORS[edge_vertices.y];
-    vec3 interpolated_vertex = (0.5 * v1)  + (0.5 * v2);
+    float vertex_val1 = abs(corner_vals[edge_vertices.x]);
+    float vertex_val2 = abs(corner_vals[edge_vertices.y]);
+    float alpha = vertex_val1 / (vertex_val1 + vertex_val2);
+    vec3 interpolated_vertex = ((1 - alpha) * v1)  + (alpha * v2);
 
     // Move the interpolated poitn into worls space
-    gl_Position.xyz = interpolated_vertex + gl_in[0].gl_Position.xyz ;//+ uChunkPosition;
+    gl_Position.xyz = interpolated_vertex + gl_in[0].gl_Position.xyz + uChunkPosition;
     gl_Position.w = 1.0;
     outVec = gl_Position.xyz;
     EmitVertex();
@@ -595,9 +598,9 @@ void main()
     int edge_count = CONFIG_TO_VERTEX_COUNT[config];
     for (int i = 0; i < edge_count; i += 3)
     {
-        emitVertex(edges[i]);
-        emitVertex(edges[i+1]);
-        emitVertex(edges[i+2]);
+        emitVertex(edges[i], corner_vals);
+        emitVertex(edges[i+1], corner_vals);
+        emitVertex(edges[i+2], corner_vals);
         EndPrimitive();
     }   
 }

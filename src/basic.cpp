@@ -22,7 +22,7 @@ extern void handleMouseMovement(GLFWwindow* window, double xpos, double ypos);
 const int WIDTH = 1000;
 const int HEIGHT = 1000;
 
-Camera* camera = new Camera();
+Camera* camera = new Camera(glm::vec3(0.0f, 0.0f, 70.0f));
 
 struct FB {
     GLuint fbo;
