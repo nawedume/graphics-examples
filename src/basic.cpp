@@ -179,9 +179,7 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, mcOutputBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * cubeVertices.size() * 9 , nullptr, GL_STATIC_DRAW);
         
-        
     long frameCount = 0;
-
     int layerIndex = 31;
     glm::vec3 chunkPosition = glm::vec3(-16.0f);
     generate_chunk_value(quadVao, chunkPosition, renderImageFramebuffer, text3DProgram);
@@ -212,19 +210,6 @@ int main()
         glEndTransformFeedback();
         glUseProgram(0);
 
-        //float subdata[32*32*32*9] {};
-        //glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0, sizeof(subdata), subdata);
-        //float max = 0.0f;
-        //for (int a = 0; a < 32*32*32*9; a += 9)
-        //{
-            //if (subdata[a] > max) max = subdata[a];
-             //std::cout << "======" << std::endl;
-             //std::cout  << subdata[a] << ", " << subdata[a+1] << ", " << subdata[a+2] << std::endl;
-             //std::cout  << subdata[a+3] << ", " << subdata[a+4] << ", " << subdata[a+5] << std::endl;
-             //std::cout  << subdata[a+6] << ", " << subdata[a+7] << ", " << subdata[a+8] << std::endl;
-        //}
-        ////std::cout << max << std::endl;
-
         finalRenderShader.use();
         glm::mat4 cameraTransfrom = camera->GetViewMatrix();
         finalRenderShader.setFloatMat4("uWorldTransform", (float*) glm::value_ptr(glm::mat4(1.0)));
@@ -232,24 +217,13 @@ int main()
         finalRenderShader.setFloatMat4("uPerspectiveTransform", glm::value_ptr(perspectiveTransform));
 
         glBindVertexArray(svao); 
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glEnable(GL_DEPTH_TEST);
         glClearColor(0.0, 0.0, 0.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) 0);
-        //glDrawArrays(GL_TRIANGLES, 0, 3);
         glDrawTransformFeedback(GL_TRIANGLES, feedbackObj);
-        //glViewport(0, 0, WIDTH, HEIGHT);
-        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        //glClearColor(0.0, 0.0, 0.0, 1.0);
-        //glClear(GL_COLOR_BUFFER_BIT);
-        //postRenderProgram.use();
-        //postRenderProgram.setInt("layerIndex", layerIndex);
-        //glDisable(GL_DEPTH_TEST);
-        //glBindVertexArray(quadVao);
-        //glActiveTexture(GL_TEXTURE0);
-        //glBindTexture(GL_TEXTURE_3D, renderImageFramebuffer.texture);
-        //glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
