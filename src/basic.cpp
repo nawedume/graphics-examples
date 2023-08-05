@@ -86,6 +86,7 @@ void generate_chunk_value(GLuint quadVao, glm::vec3 chunkPosition, FB texture3DF
 
 int main()
 {
+    const glm::vec3 lightDir(0.0, 0.0, 1.0);
 
     GLFWwindow* window = setupWindow(WIDTH, HEIGHT);
     setupGlad();
@@ -129,12 +130,11 @@ int main()
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
     glEnableVertexAttribArray(0);
 
-    const char* varyings[1];
-    varyings[0] = "outVec";
+    const char* varyings[2] { "outVec", "outNormal" };
     TransformOutputParams params {
         .varyings = varyings,
-        .varyingsCount = 1,
-        .bufferMode = GL_INTERLEAVED_ATTRIBS
+        .varyingsCount = 2,
+        .bufferMode = GL_INTERLEAVED_ATTRIBS 
     };
     TransformShader mcBufferShader("./shaders/mc.vs", "./shaders/mc.gs", params);
     // generate a cube buffer;
@@ -215,14 +215,18 @@ int main()
         finalRenderShader.setFloatMat4("uWorldTransform", (float*) glm::value_ptr(glm::mat4(1.0)));
         finalRenderShader.setFloatMat4("uCameraTransform", glm::value_ptr(cameraTransfrom));
         finalRenderShader.setFloatMat4("uPerspectiveTransform", glm::value_ptr(perspectiveTransform));
+        finalRenderShader.setVec3("uLightDir", (float*) glm::value_ptr(lightDir));
 
         glBindVertexArray(svao); 
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glEnable(GL_DEPTH_TEST);
         glClearColor(0.0, 0.0, 0.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) 0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) 0);
+
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) (3 * sizeof(float)));
         glDrawTransformFeedback(GL_TRIANGLES, feedbackObj);
 
         glfwSwapBuffers(window);
@@ -291,6 +295,15 @@ void handleInputs(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
     {
         camera->ProcessKeyboard(Camera_Movement::DOWN, deltaTime);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
 
 }

@@ -555,8 +555,14 @@ layout (points) in;
 layout (triangle_strip, max_vertices = 12) out;
 
 out vec3 outVec;
+out vec3 outNormal;
 
-void emitVertex(int edge, float corner_vals[8])
+float mSample(vec3 coord)
+{
+    return texture(screenTexture, coord).x;// min(texture(screenTexture, coord).x, 0.0);
+}
+
+void emitVertex(int edge, float corner_vals[8], float samplerOffset)
 {
     ivec2 edge_vertices = EDGE_TO_VERTICES_LIST[edge];
     vec3 v1 = CORNER_VECTORS[edge_vertices.x];
@@ -567,9 +573,18 @@ void emitVertex(int edge, float corner_vals[8])
     vec3 interpolated_vertex = ((1 - alpha) * v1)  + (alpha * v2);
 
     // Move the interpolated poitn into worls space
-    gl_Position.xyz = interpolated_vertex + gl_in[0].gl_Position.xyz + uChunkPosition;
-    gl_Position.w = 1.0;
-    outVec = gl_Position.xyz;
+    vec3 vertex_chunk_space = interpolated_vertex + gl_in[0].gl_Position.xyz;
+    outVec.xyz = vertex_chunk_space + uChunkPosition;
+    
+    // calculate normal;
+    vec3 samplerCoord = vertex_chunk_space / uChunkWidth;
+    outNormal.x = mSample(samplerCoord + vec3(samplerOffset, 0.0, 0.0)) - mSample(samplerCoord - vec3(samplerOffset, 0.0, 0.0));
+    outNormal.y = mSample(samplerCoord + vec3(0.0, samplerOffset, 0.0)) - mSample(samplerCoord - vec3(0.0, samplerOffset, 0.0));
+    outNormal.z = mSample(samplerCoord + vec3(0.0, 0.0, samplerOffset)) - mSample(samplerCoord - vec3(0.0, 0.0, samplerOffset));
+    // have to negate it because the gradient points to the direction of highest density.
+    //outNormal = outNormal / (2 * samplerOffset);
+    outNormal = -normalize(outNormal);
+
     EmitVertex();
 }
 
@@ -588,6 +603,7 @@ void main()
     corner_vals[6] = texture(screenTexture, samplerCoord + vec3(samplerOffset, samplerOffset, -samplerOffset)).x;
     corner_vals[7] = texture(screenTexture, samplerCoord + vec3(0.0, samplerOffset, -samplerOffset)).x;
 
+
     int config = 0;
     for (int i = 0; i < 8; i++)
     {
@@ -598,9 +614,9 @@ void main()
     int edge_count = CONFIG_TO_VERTEX_COUNT[config];
     for (int i = 0; i < edge_count; i += 3)
     {
-        emitVertex(edges[i], corner_vals);
-        emitVertex(edges[i+1], corner_vals);
-        emitVertex(edges[i+2], corner_vals);
+        emitVertex(edges[i], corner_vals, samplerOffset);
+        emitVertex(edges[i+1], corner_vals, samplerOffset);
+        emitVertex(edges[i+2], corner_vals, samplerOffset);
         EndPrimitive();
     }   
 }
